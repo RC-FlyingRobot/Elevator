@@ -7,17 +7,17 @@ from IPython.display import display, HTML
 # ==========================================
 files = {
     "start": "sounds/試合開始のゴング.mp3",
-    "end":   "sounds/alarm_clock.ogg",#試合終了のゴング.mp3",
+    "end":   "sounds/試合終了のゴング.mp3",
     "count": "sounds/決定ボタンを押す1.mp3",
     "hit":   "sounds/決定ボタンを押す52.mp3"
 }
 
 def load_sound(key, filename):
     defaults = {
-        "start": "../sounds/crowd_whistle.ogg",
-        "end":   "../sounds/alarm_clock.ogg",
-        "count": "../sounds/beep_short.ogg",
-        "hit":   "../sounds/pop.ogg"
+        "start": "https://actions.google.com/sounds/v1/sports/crowd_whistle.ogg",
+        "end":   "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg",
+        "count": "https://actions.google.com/sounds/v1/alarms/beep_short.ogg",
+        "hit":   "https://actions.google.com/sounds/v1/cartoon/pop.ogg"
     }
     if os.path.exists(filename):
         try:
@@ -345,8 +345,4 @@ function openApp() {{
 </script>
 """
 
-#display(HTML(launcher_html))
-
-
-with open("controller.html", "w", encoding="utf-8") as f:
-    f.write(launcher_html)
+display(HTML(launcher_html))
