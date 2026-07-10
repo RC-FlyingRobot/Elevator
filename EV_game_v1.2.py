@@ -13,6 +13,12 @@ files = {
 }
 
 def load_sound(key, filename):
+    defaults = {
+        "start": "https://actions.google.com/sounds/v1/sports/crowd_whistle.ogg",
+        "end":   "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg",
+        "count": "https://actions.google.com/sounds/v1/alarms/beep_short.ogg",
+        "hit":   "https://actions.google.com/sounds/v1/cartoon/pop.ogg"
+    }
     if os.path.exists(filename):
         try:
             with open(filename, "rb") as f:
@@ -23,8 +29,8 @@ def load_sound(key, filename):
         except Exception as e:
             print(f"❌ 読み込みエラー: {filename} ({e})")
     else:
-        print(f"⚠️ ファイルが見つかりません: {filename} ")
-    return None
+        print(f"⚠️ ファイルが見つかりません: {filename} (デフォルト音を使用します)")
+    return defaults[key]
 
 print("--- 音声ファイルの準備中 ---")
 src_start = load_sound("start", files["start"])
