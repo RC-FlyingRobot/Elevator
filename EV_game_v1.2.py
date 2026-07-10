@@ -7,18 +7,12 @@ from IPython.display import display, HTML
 # ==========================================
 files = {
     "start": "sounds/試合開始のゴング.mp3",
-    "end":   "sounds/alarm_clock.ogg",#試合終了のゴング.mp3",
+    "end":   "sounds/試合終了のゴング.mp3",
     "count": "sounds/決定ボタンを押す1.mp3",
     "hit":   "sounds/決定ボタンを押す52.mp3"
 }
 
 def load_sound(key, filename):
-    defaults = {
-        "start": "../sounds/crowd_whistle.ogg",
-        "end":   "../sounds/alarm_clock.ogg",
-        "count": "../sounds/beep_short.ogg",
-        "hit":   "../sounds/pop.ogg"
-    }
     if os.path.exists(filename):
         try:
             with open(filename, "rb") as f:
@@ -29,8 +23,8 @@ def load_sound(key, filename):
         except Exception as e:
             print(f"❌ 読み込みエラー: {filename} ({e})")
     else:
-        print(f"⚠️ ファイルが見つかりません: {filename} (デフォルト音を使用します)")
-    return defaults[key]
+        print(f"⚠️ ファイルが見つかりません: {filename} ")
+    return None
 
 print("--- 音声ファイルの準備中 ---")
 src_start = load_sound("start", files["start"])
@@ -345,8 +339,4 @@ function openApp() {{
 </script>
 """
 
-#display(HTML(launcher_html))
-
-
-with open("controller.html", "w", encoding="utf-8") as f:
-    f.write(launcher_html)
+display(HTML(launcher_html))
