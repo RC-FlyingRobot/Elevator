@@ -7,7 +7,7 @@ from IPython.display import display, HTML
 # ==========================================
 files = {
     "start": "sounds/試合開始のゴング.mp3",
-    "end":   "sounds/alarm_clock.ogg",#試合終了のゴング.mp3",
+    "end":   "sounds/zikangire.mp3",#試合終了のゴング.mp3",
     "count": "sounds/決定ボタンを押す1.mp3",
     "hit":   "sounds/決定ボタンを押す52.mp3"
 }
