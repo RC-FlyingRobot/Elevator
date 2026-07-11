@@ -345,4 +345,7 @@ function openApp() {{
 </script>
 """
 
-display(HTML(launcher_html))
+#display(HTML(launcher_html))
+
+with open("controller.html", "w", encoding="utf-8") as f:
+    f.write(launcher_html)
