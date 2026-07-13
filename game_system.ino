@@ -1,3 +1,4 @@
+/*2026 コード*/
 #include <Wire.h>
 #include <VL53L1X.h>
 #include <Adafruit_NeoPixel.h>
@@ -10,6 +11,25 @@
 #define THRESHOLD_MM 50     
 #define COOLDOWN_MS 300
 #define GAME_DURATION 30000 // ★30秒の時間制限を復活
+
+void pickNewTarget(int prevTarget);
+void showTarget(int target);
+void flashTargetColor(int section, uint32_t color);
+void startGame();
+void stopGame();
+void finishGame();
+void startCountdown();
+void colorWipe(uint32_t color, int wait);
+
+//===== HOLDミッション =====
+bool holdMission = false;
+unsigned long holdStartTime = 0;
+
+const unsigned long HOLD_TIME = 3000; // 3秒維持
+const int HOLD_BONUS = 5;
+
+int nextMissionScore = 5; // 次回発動スコア
+
 
 VL53L1X sensor;
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -96,24 +116,200 @@ void loop() {
   int targetMin = MIN_DISTANCE + currentTarget * sectionRange;
   int targetMax = targetMin + sectionRange;
 
-  if (distance >= targetMin - THRESHOLD_MM && distance <= targetMax + THRESHOLD_MM) {
-    if (millis() - lastHitTime > COOLDOWN_MS) { 
+  bool inTarget = (distance >= targetMin - THRESHOLD_MM && distance <= targetMax + THRESHOLD_MM);
+
+if (!holdMission)
+{
+  if (inTarget)
+  {
+    if (millis() - lastHitTime > COOLDOWN_MS)
+    {
       score++;
-      Serial.println("PLAY_HIT"); 
+
+      Serial.println("PLAY_HIT");
+
       Serial.print("HIT! スコア: ");
       Serial.println(score);
-      flashTargetColor(currentTarget, strip.Color(255, 255, 255)); 
-      
-      pickNewTarget(currentTarget);
+
+      flashTargetColor(
+        currentTarget,
+        strip.Color(255,255,255)
+      );
+
+      delay(100);
+
+      //===== 5回ごとにミッション =====
+      if(score == nextMissionScore)
+      {
+        holdMission = true;
+        holdStartTime = 0;
+
+        nextMissionScore += 5;
+
+        Serial.println("HOLD_START");
+
+        // ミッション用ターゲット生成
+        int missionTarget = currentTarget;
+
+        for(int retry=0; retry<20; retry++)
+        {
+            missionTarget = random(NUM_SECTIONS);
+
+            if(abs(missionTarget-currentTarget) > 1)
+            {
+                break;
+            }
+        }
+
+        currentTarget = missionTarget;
+
+        // 白色で点灯
+        strip.clear();
+
+        int ledsPerSection =
+          NUM_LEDS / NUM_SECTIONS;
+
+        int startLED =
+          currentTarget * ledsPerSection;
+
+        int endLED =
+          startLED + ledsPerSection - 1;
+
+        for(int i=startLED;i<=endLED;i++)
+        {
+          strip.setPixelColor(
+            i,
+            strip.Color(0,0,255)
+          );
+        }
+
+        strip.show();
+      }
+      else
+      {
+        pickNewTarget(currentTarget);
+      }
+
       lastHitTime = millis();
     }
   }
+}
+else
+{
+  //=========================
+  // HOLDミッション処理
+  //=========================
+
+  if(inTarget)
+  {
+    if(holdStartTime == 0)
+    {
+      holdStartTime = millis();
+      Serial.println("HOLD_BEGIN");
+    }
+
+    unsigned long holdElapsed =
+      millis() - holdStartTime;
+
+    // LEDゲージ演出
+    int ledsPerSection =
+      NUM_LEDS / NUM_SECTIONS;
+
+    int startLED =
+      currentTarget * ledsPerSection;
+
+    int filled =
+      map(
+        holdElapsed,
+        0,
+        HOLD_TIME,
+        0,
+        ledsPerSection
+      );
+
+    for(int i=0;i<ledsPerSection;i++)
+    {
+      if(i < filled)
+      {
+        strip.setPixelColor(
+          startLED+i,
+          strip.Color(0,255,0)
+        );
+      }
+      else
+      {
+        strip.setPixelColor(
+          startLED+i,
+          strip.Color(30,30,30)
+        );
+      }
+    }
+
+    strip.show();
+
+    if(holdElapsed >= HOLD_TIME)
+    {
+      score += HOLD_BONUS;
+
+      Serial.println("HOLD_SUCCESS");
+
+      Serial.print("BONUS! スコア: ");
+      Serial.println(score);
+
+      flashTargetColor(
+        currentTarget,
+        strip.Color(255,255,255)
+      );
+
+      delay(300);
+
+      holdMission = false;
+      holdStartTime = 0;
+
+      pickNewTarget(currentTarget);
+    }
+  }
+  else
+  {
+    if(holdStartTime != 0)
+    {
+      Serial.println("HOLD_FAIL");
+    }
+
+    holdStartTime = 0;
+
+    // ミッションターゲット再表示
+    strip.clear();
+
+    int ledsPerSection =
+      NUM_LEDS / NUM_SECTIONS;
+
+    int startLED =
+      currentTarget * ledsPerSection;
+
+    int endLED =
+      startLED + ledsPerSection - 1;
+
+    for(int i=startLED;i<=endLED;i++)
+    {
+      strip.setPixelColor(
+        i,
+        strip.Color(255,255,255)
+      );
+    }
+
+    strip.show();
+  }
+}
   delay(10);
 }
 
 // ゲーム開始
 void startGame() {
   score = 0;
+  holdMission = false;
+  holdStartTime = 0;
+  nextMissionScore = 5;
   
   // カウントダウンフラグのリセット
   count3played = false;
@@ -138,6 +334,8 @@ void finishGame() {
   Serial.println("PLAY_END"); // PCに終了合図（これでランキングが出ます）
   Serial.println("RESET_DONE"); // ボタンを復活させる
   Serial.println("=== タイムアップ！ ===");
+  holdMission = false;
+  holdStartTime = 0;
 }
 
 // リセットボタンによる強制終了
@@ -148,6 +346,8 @@ void stopGame() {
   strip.show();
   Serial.println("=== リセット中断 ===");
   Serial.println("RESET_DONE");
+  holdMission = false;
+  holdStartTime = 0;
 }
 
 void startCountdown() {
@@ -182,34 +382,75 @@ void colorWipe(uint32_t color, int wait) {
   strip.show();
 }
 
-void pickNewTarget(int prevTarget) {
+// void pickNewTarget(int prevTarget) {
+//   int newTarget;
+//   do {
+//     newTarget = random(NUM_SECTIONS);
+//   } while (abs(newTarget - prevTarget) <= 1); 
+
+//   currentTarget = newTarget;
+
+//   uint8_t r, g, b;
+//   switch (newTarget) {
+//     case 0: r = 255; g = 0; b = 0; break;        
+//     case 1: r = 255; g = 64; b = 0; break;       
+//     case 2: r = 255; g = 255; b = 0; break;      
+//     case 3: r = 128; g = 255; b = 0; break;      
+//     case 4: r = 0; g = 255; b = 0; break;        
+//     case 5: r = 0; g = 255; b = 255; break;      
+//     case 6: r = 0; g = 0; b = 255; break;        
+//     case 7: r = 128; g = 0; b = 255; break;      
+//   }
+
+//   strip.clear();
+//   int ledsPerSection = NUM_LEDS / NUM_SECTIONS;
+//   int startLED = newTarget * ledsPerSection;
+//   int endLED = startLED + ledsPerSection - 1;
+
+//   for (int i = startLED; i <= endLED; i++) {
+//     strip.setPixelColor(i, strip.Color(r, g, b));
+//   }
+//   strip.show();
+// }
+
+void pickNewTarget(int prevTarget)
+{
   int newTarget;
+
   do {
     newTarget = random(NUM_SECTIONS);
-  } while (abs(newTarget - prevTarget) <= 1); 
+  } while (abs(newTarget - prevTarget) <= 1);
 
   currentTarget = newTarget;
 
+  showTarget(currentTarget);
+}
+
+void showTarget(int target)
+{
   uint8_t r, g, b;
-  switch (newTarget) {
-    case 0: r = 255; g = 0; b = 0; break;        
-    case 1: r = 255; g = 64; b = 0; break;       
-    case 2: r = 255; g = 255; b = 0; break;      
-    case 3: r = 128; g = 255; b = 0; break;      
-    case 4: r = 0; g = 255; b = 0; break;        
-    case 5: r = 0; g = 255; b = 255; break;      
-    case 6: r = 0; g = 0; b = 255; break;        
-    case 7: r = 128; g = 0; b = 255; break;      
+
+  switch (target) {
+    case 0: r = 255; g = 0; b = 0; break;
+    case 1: r = 255; g = 64; b = 0; break;
+    case 2: r = 255; g = 255; b = 0; break;
+    case 3: r = 128; g = 255; b = 0; break;
+    case 4: r = 0; g = 255; b = 0; break;
+    case 5: r = 0; g = 255; b = 255; break;
+    case 6: r = 0; g = 0; b = 255; break;
+    case 7: r = 128; g = 0; b = 255; break;
   }
 
   strip.clear();
+
   int ledsPerSection = NUM_LEDS / NUM_SECTIONS;
-  int startLED = newTarget * ledsPerSection;
+  int startLED = target * ledsPerSection;
   int endLED = startLED + ledsPerSection - 1;
 
   for (int i = startLED; i <= endLED; i++) {
     strip.setPixelColor(i, strip.Color(r, g, b));
   }
+
   strip.show();
 }
 
